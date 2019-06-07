@@ -3,6 +3,7 @@ import random
 import time
 from itertools import combinations
 
+
 class SetCover():
 
     def load_data(self, filepath):
@@ -13,13 +14,13 @@ class SetCover():
             for line in file:
                 lines.append(line)
 
-        #First line
+        # First line
         line_0 = lines[0].strip().split()
 
-        #Number of atributes
+        # Number of atributes
         self.nr_atr = int(line_0[0])
 
-        #Number of subsets
+        # Number of subsets
         self.nr_subsets = int(line_0[1])
 
         iter_lines = iter(lines)
@@ -35,7 +36,7 @@ class SetCover():
             if len(self.subsets_cost) == self.nr_subsets:
                 break
 
-        #List containing the cost of each subset
+        # List containing the cost of each subset
         self.subsets_cost = [int(cost) for cost in self.subsets_cost]
 
         count_elem = -1
@@ -44,28 +45,28 @@ class SetCover():
 
         line_of_size = True
 
-        #Computing the list of subsets
-        self.subsets = [ set() for _ in range(self.nr_subsets)]
+        # Computing the list of subsets
+        self.subsets = [set() for _ in range(self.nr_subsets)]
 
         for line in iter_lines:
-            
+
             if line_of_size:
                 nr_subsets_in_line = int(line.strip('\n').split()[0])
                 line_of_size = False
                 count_elem += 1
                 count_aux = 0
-                
+
             else:
                 line_search = line.strip('\n').split()
                 count_aux += len(line_search)
 
                 for j in line_search:
                     self.subsets[int(j) - 1].add(count_elem)
-                
+
                 if count_aux == nr_subsets_in_line:
-                    line_of_size = True 
-        
-        #Creating numpy arrays for increasing performance in some operations
+                    line_of_size = True
+
+        # Creating numpy arrays for increasing performance in some operations
         self.subsets_np = np.array(self.subsets)
         self.subsets_cost_np = np.array(self.subsets_cost)
 
@@ -75,7 +76,7 @@ class SetCover():
         return total_cost
 
     def is_complete(self, solution):
-    
+
         if len(solution) == 0:
             return False
 
@@ -87,22 +88,22 @@ class SetCover():
 
     def greedy_randomized_algorithm(self, alpha):
 
-        #Subsets in the solution
+        # Subsets in the solution
         Solution = set()
 
-        #Atributes satisfied by the solution
-        Solution_atr = set() 
+        # Atributes satisfied by the solution
+        Solution_atr = set()
 
-        #Candidate set
+        # Candidate set
         C = set(range(self.nr_subsets))
 
         while not self.is_complete(Solution):
             ratio = dict()
-            
-            #Calculate the ratio for every subset in the candidate set
+
+            # Calculate the ratio for every subset in the candidate set
             for i in C:
                 atr_added = len(self.subsets[i] - Solution_atr)
-                
+
                 if atr_added > 0:
                     ratio[i] = self.subsets_cost[i] / atr_added
 
@@ -110,30 +111,30 @@ class SetCover():
             c_max = max(ratio.values())
 
             RCL = [i for i in C if i in ratio.keys() and ratio[i] <= c_min + alpha * (c_max - c_min)]
-            
-            s_index = random.choice(RCL)     
-            
+
+            s_index = random.choice(RCL)
+
             C -= {s_index}
-            Solution.add(s_index)          
+            Solution.add(s_index)
             Solution_atr.update(self.subsets[s_index])
-            
+
         return Solution
 
-    def remove_redundancy(self, solution): 
-    
+    def remove_redundancy(self, solution):
+
         for i in solution:
             sol_aux = solution.copy()
             sol_aux.remove(i)
             if self.is_complete(sol_aux):
                 solution = sol_aux.copy()
-            
+
         return solution
 
     def local_search(self, solution):
 
         sol_set = self.remove_redundancy(solution)
-        
-        #Subsets not in the solution
+
+        # Subsets not in the solution
         unused_set = set([s for s in range(self.nr_subsets) if s not in sol_set])
 
         best_cost = self.evaluate_solution(sol_set)
@@ -150,25 +151,25 @@ class SetCover():
             search_set = sol_set.copy()
 
             for i_out in sol_set:
-                
-                #Removes redundancy if present
+
+                # Removes redundancy if present
                 search_set.difference_update({i_out})
-                
+
                 if self.is_complete(search_set):
                     increase_remove = True
                     sol_set.difference_update({i_out})
-                    
-                    #If redundancy is present, does not make sense to evaluate any swap
+
+                    # If redundancy is present, does not make sense to evaluate any swap
                     break
                 else:
                     search_set.update({i_out})
-                    
+
                 for i_in in unused_set:
-                    
-                    #If the subset entering the solution has higher cost than the one exiting, improvement is not possible
-                    #This local search never allows the solution to get worst
+
+                    # If the subset entering the solution has higher cost than the one exiting, improvement is not possible
+                    # This local search never allows the solution to get worst
                     if self.subsets_cost[i_in] <= self.subsets_cost[i_out]:
-                    
+
                         search_set.update({i_in})
                         search_set.difference_update({i_out})
 
@@ -197,93 +198,93 @@ class SetCover():
     def path_relinking(self, initial_solution, final_solution):
 
         sym_dif = initial_solution.symmetric_difference(final_solution)
-        
+
         cost_init_sol = self.evaluate_solution(initial_solution)
         cost_final_sol = self.evaluate_solution(final_solution)
-        
+
         best_cost = min(cost_init_sol, cost_final_sol)
-        
+
         if cost_init_sol < cost_final_sol:
             best_sol = initial_solution
-            
+
         else:
             best_sol = final_solution
-            
+
         current_sol = initial_solution.copy()
 
         best_dif_cost = 0
         best_change_cost = best_cost
-        
+
         while len(sym_dif) > 0:
 
             new_it = True
-            
+
             for i in sym_dif:
-                
+
                 if i in current_sol:
                     dif_cost = -self.subsets_cost[i]
-                    
+
                 else:
-                    dif_cost = self.subsets_cost[i]                    
-                    
+                    dif_cost = self.subsets_cost[i]
+
                 current_sol.symmetric_difference_update({i})
 
                 if (dif_cost < best_dif_cost or new_it) and self.is_complete(current_sol):
                     new_it = False
-                    
+
                     best_i = i
                     best_dif_cost = dif_cost
-                
+
                 current_sol.symmetric_difference_update({i})
-            
+
             current_sol.symmetric_difference_update({best_i})
-            
+
             best_change_cost += best_dif_cost
-            
+
             if best_change_cost < best_cost:
                 best_cost = best_change_cost
                 best_sol = current_sol.copy()
-                
+
             sym_dif.remove(best_i)
 
         return best_sol
-    
+
     def GRASP(self, MaxTime, alpha, nr_pool):
         best_cost = 0
         new_it = True
         P = []
-        
+
         start = time.time()
-        
+
         clock = 0
         iteration = -1
-        
+
         while clock < MaxTime:
             iteration += 1
             x = self.greedy_randomized_algorithm(alpha)
             x = self.local_search(x)
-            
+
             P.append(x)
             cost = self.evaluate_solution(P[-1])
 
             if cost < best_cost or new_it:
-                best_cost = cost        
+                best_cost = cost
                 new_it = False
                 best_sol = P[-1]
 
-                time_best = round(time.time() - start, 2)     
+                time_best = round(time.time() - start, 2)
                 iteration_best = iteration
-                
+
             if iteration > 1:
-                
+
                 pool = random.sample(range(len(P)), min(iteration, nr_pool))
-                
+
                 for s, t in combinations(pool, 2):
-                    
+
                     x_p = self.path_relinking(P[s], P[t])
 
                     cost_x_p = self.evaluate_solution(x_p)
-                    
+
                     if cost_x_p < best_cost:
 
                         best_cost = cost_x_p
@@ -293,5 +294,6 @@ class SetCover():
                         iteration_best = iteration
 
             clock = round(time.time() - start, 1)
-                             
+
         return best_cost, best_sol, time_best, iteration_best
+
